@@ -33,6 +33,7 @@ from threading import Timer, Thread
 from impacket import LOG
 from impacket.dcerpc.v5.enum import Enum
 from impacket.structure import Structure
+from pprint import pprint
 
 # Amount of seconds each socks plugin keep alive function will be called
 # It is up to each plugin to send the keep alive to the target or not in every hit.
@@ -253,7 +254,7 @@ def webService(server):
 
     @app.route('/')
     def index():
-        print(server.activeRelays)
+        pprint(server.activeRelays)
         return "Relays available: %s!" % (len(server.activeRelays))
 
     @app.route('/ntlmrelayx/api/v1.0/relays', methods=['GET'])
@@ -267,6 +268,32 @@ def webService(server):
                         isAdmin = server.activeRelays[target][port][user]['isAdmin']
                         relays.append([protocol, target, user, isAdmin, str(port)])
         return jsonify(relays)
+
+    @app.route('/ntlmrelayx/api/v2.0/relays', methods=['GET'])
+    def get_v2_relays():
+        relays = []
+        for target in server.activeRelays:
+            for port in server.activeRelays[target]:
+                for user in server.activeRelays[target][port]:
+                    if user != 'data' and user != 'scheme':
+                        protocol = server.activeRelays[target][port]['scheme']
+                        isAdmin = server.activeRelays[target][port][user]['isAdmin']
+                        john = server.activeRelays[target][port][user]['data']['JOHN_OUTPUT']['hash_string']
+                        relays.append({"protocol": protocol, "target": target, "user": user, "admin": isAdmin, "port": port, "hash": john})
+        return jsonify(relays)
+
+    @app.route('/ntlmrelayx/api/v2.0/hashes', methods=['GET'])
+    def get_v2_hashes():
+        hashes = []
+        for target in server.activeRelays:
+            for port in server.activeRelays[target]:
+                for user in server.activeRelays[target][port]:
+                    if user != 'data' and user != 'scheme':
+                        john = server.activeRelays[target][port]['data']['JOHN_OUTPUT']['hash_string']
+                        if john not in hashes:
+                            hashes.append(john)
+        return "\n".join(hashes)
+
 
     @app.route('/ntlmrelayx/api/v1.0/relays', methods=['GET'])
     def get_info(relay):
